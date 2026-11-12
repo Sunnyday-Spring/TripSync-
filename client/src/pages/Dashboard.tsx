@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import type { Trip } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,7 @@ import { getDestinationCover } from '../utils/imageUtils';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -167,7 +168,7 @@ export const Dashboard: React.FC = () => {
     }
     setCreating(true);
     try {
-      await api.post('/trips', {
+      const res = await api.post('/trips', {
         name,
         description,
         startDate,
@@ -181,7 +182,10 @@ export const Dashboard: React.FC = () => {
       setStartDate('');
       setEndDate('');
       setCustomInviteCode('');
-      fetchTrips();
+      await fetchTrips();
+      if (res.data.trip?.id) {
+        navigate(`/trips/${res.data.trip.id}`);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถสร้างทริปได้');
     } finally {
@@ -279,7 +283,10 @@ export const Dashboard: React.FC = () => {
       toast.success(res.data.message || 'เข้าร่วมทริปสำเร็จ!');
       setShowJoinModal(false);
       setInviteCode('');
-      fetchTrips();
+      await fetchTrips();
+      if (res.data.tripId) {
+        navigate(`/trips/${res.data.tripId}`);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถเข้าร่วมทริปได้');
     } finally {

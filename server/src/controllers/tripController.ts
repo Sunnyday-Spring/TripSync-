@@ -284,7 +284,11 @@ export const joinTripByInviteCode = async (req: AuthRequest, res: Response) => {
     });
 
     if (existingMember) {
-      return res.status(400).json({ message: `คุณเป็นสมาชิกของทริป "${trip.name}" อยู่แล้ว`, tripId: trip.id });
+      return res.status(200).json({
+        message: `คุณอยู่ในทริป "${trip.name}" อยู่แล้ว กำลังพาไปยังหน้าทริป...`,
+        tripId: trip.id,
+        alreadyMember: true,
+      });
     }
 
     await prisma.tripMember.create({
@@ -295,7 +299,11 @@ export const joinTripByInviteCode = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    return res.json({ message: `เข้าร่วมทริป "${trip.name}" สำเร็จ!`, tripId: trip.id });
+    return res.status(200).json({
+      message: `เข้าร่วมทริป "${trip.name}" สำเร็จ!`,
+      tripId: trip.id,
+      alreadyMember: false,
+    });
   } catch (error: any) {
     console.error('Join trip error:', error);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าร่วมทริป', error: error.message });
