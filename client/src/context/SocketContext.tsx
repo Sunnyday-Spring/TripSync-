@@ -15,7 +15,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+    const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'https://tripsync-server-3jvi.onrender.com', {
       autoConnect: true,
     });
     setSocket(newSocket);
