@@ -7,10 +7,25 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const { name, description, startDate, endDate } = req.body;
+    const { name, description, startDate, endDate, customInviteCode } = req.body;
 
     if (!name || !startDate || !endDate) {
-      return res.status(400).json({ message: 'Trip name, start date, and end date are required' });
+      return res.status(400).json({ message: 'กรุณากรอกชื่อทริป วันที่เริ่ม และวันที่สิ้นสุด' });
+    }
+
+    let inviteCode: string;
+    if (customInviteCode && typeof customInviteCode === 'string' && customInviteCode.trim()) {
+      const clean = customInviteCode.trim().toUpperCase();
+      const existing = await prisma.trip.findFirst({
+        where: { inviteCode: { equals: clean, mode: 'insensitive' } },
+      });
+      if (existing) {
+        return res.status(400).json({ message: `รหัสทริป "${clean}" มีผู้อื่นใช้งานแล้ว กรุณาเลือกรหัสอื่น` });
+      }
+      inviteCode = clean;
+    } else {
+      // Auto-generate clean 6-character short code (e.g. "TRIP9X", "CNX888")
+      inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
     const trip = await prisma.trip.create({
@@ -19,6 +34,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
         description,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        inviteCode,
         ownerId: userId,
         members: {
           create: {
@@ -36,7 +52,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    return res.status(201).json({ message: 'Trip created successfully', trip });
+    return res.status(201).json({ message: 'สร้างทริปใหม่สำเร็จ', trip });
   } catch (error: any) {
     console.error('Create trip error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
@@ -124,7 +140,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
-    const { name, description, startDate, endDate } = req.body;
+    const { name, description, startDate, endDate, customInviteCode } = req.body;
 
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
@@ -139,6 +155,23 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'Permission denied. Only Owner or Admin can update trip.' });
     }
 
+    let newInviteCode = trip.inviteCode;
+    if (customInviteCode && typeof customInviteCode === 'string' && customInviteCode.trim()) {
+      const clean = customInviteCode.trim().toUpperCase();
+      if (clean !== trip.inviteCode) {
+        const existing = await prisma.trip.findFirst({
+          where: {
+            inviteCode: { equals: clean, mode: 'insensitive' },
+            id: { not: id },
+          },
+        });
+        if (existing) {
+          return res.status(400).json({ message: `รหัสทริป "${clean}" มีผู้อื่นใช้งานแล้ว กรุณาเลือกรหัสอื่น` });
+        }
+        newInviteCode = clean;
+      }
+    }
+
     const updatedTrip = await prisma.trip.update({
       where: { id },
       data: {
@@ -146,6 +179,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
         description: description !== undefined ? description : trip.description,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
+        inviteCode: newInviteCode,
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },
@@ -163,7 +197,7 @@ export const updateTrip = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    return res.json({ message: 'Trip updated successfully', trip: updatedTrip });
+    return res.json({ message: 'แก้ไขข้อมูลทริปสำเร็จ', trip: updatedTrip });
   } catch (error: any) {
     console.error('Update trip error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
@@ -225,17 +259,32 @@ export const joinTripByInviteCode = async (req: AuthRequest, res: Response) => {
     const { inviteCode } = req.body;
 
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    if (!inviteCode) return res.status(400).json({ message: 'Invite code is required' });
+    if (!inviteCode || typeof inviteCode !== 'string' || !inviteCode.trim()) {
+      return res.status(400).json({ message: 'กรุณากรอกรหัสทริป (Invite Code)' });
+    }
 
-    const trip = await prisma.trip.findUnique({ where: { inviteCode } });
-    if (!trip) return res.status(404).json({ message: 'Invalid invite code' });
+    const cleanCode = inviteCode.trim();
+
+    // Look up trip case-insensitively so "trip123" and "TRIP123" both match!
+    const trip = await prisma.trip.findFirst({
+      where: {
+        inviteCode: {
+          equals: cleanCode,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!trip) {
+      return res.status(404).json({ message: `ไม่พบทริปที่มีรหัส "${cleanCode}" กรุณาตรวจสอบรหัสอีกครั้ง` });
+    }
 
     const existingMember = await prisma.tripMember.findFirst({
       where: { tripId: trip.id, userId },
     });
 
     if (existingMember) {
-      return res.status(400).json({ message: 'You are already a member of this trip', tripId: trip.id });
+      return res.status(400).json({ message: `คุณเป็นสมาชิกของทริป "${trip.name}" อยู่แล้ว`, tripId: trip.id });
     }
 
     await prisma.tripMember.create({
@@ -246,10 +295,10 @@ export const joinTripByInviteCode = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    return res.json({ message: 'Joined trip successfully!', tripId: trip.id });
+    return res.json({ message: `เข้าร่วมทริป "${trip.name}" สำเร็จ!`, tripId: trip.id });
   } catch (error: any) {
     console.error('Join trip error:', error);
-    return res.status(500).json({ message: 'Internal server error', error: error.message });
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าร่วมทริป', error: error.message });
   }
 };
 

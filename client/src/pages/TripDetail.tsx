@@ -21,7 +21,6 @@ import {
   Trash2,
   LogOut,
   AlertTriangle,
-  Share2,
   Copy,
   Printer,
 } from 'lucide-react';
@@ -44,6 +43,7 @@ export const TripDetail: React.FC = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
+  const [editInviteCode, setEditInviteCode] = useState('');
   const [updating, setUpdating] = useState(false);
 
   // Delete Trip state
@@ -116,6 +116,7 @@ export const TripDetail: React.FC = () => {
     setEditDescription(trip.description || '');
     setEditStartDate(new Date(trip.startDate).toISOString().split('T')[0]);
     setEditEndDate(new Date(trip.endDate).toISOString().split('T')[0]);
+    setEditInviteCode(trip.inviteCode || '');
     setShowEditModal(true);
   };
 
@@ -132,6 +133,7 @@ export const TripDetail: React.FC = () => {
         description: editDescription,
         startDate: editStartDate,
         endDate: editEndDate,
+        customInviteCode: editInviteCode.trim().toUpperCase(),
       });
       toast.success('แก้ไขข้อมูลทริปสำเร็จ!');
       setShowEditModal(false);
@@ -331,12 +333,12 @@ export const TripDetail: React.FC = () => {
             </nav>
           </div>
 
-          {/* 2. Invite Code & Share Card */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3">
+          {/* 2. Invite Code Card */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">รหัสเชิญเพื่อน</span>
               <span className="inline-flex items-center space-x-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                <span>Trip ID</span>
+                <span>Trip Code</span>
               </span>
             </div>
 
@@ -356,22 +358,9 @@ export const TripDetail: React.FC = () => {
                 <span>คัดลอก</span>
               </button>
             </div>
-
-            <button
-              onClick={() => {
-                const shareText = `มาร่วมวางแผนทริป "${trip.name}" ด้วยกันบน TripSync!\nรหัสเข้าร่วม: ${trip.inviteCode}\n${window.location.href}`;
-                if (navigator.share) {
-                  navigator.share({ title: trip.name, text: shareText, url: window.location.href }).catch(() => {});
-                } else {
-                  navigator.clipboard.writeText(shareText);
-                  toast.success('คัดลอกข้อความและลิงก์สำหรับชวนเพื่อนแล้ว!');
-                }
-              }}
-              className="w-full min-h-[40px] flex items-center justify-center space-x-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors border border-blue-200"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>แชร์ลิงก์ชวนเพื่อน</span>
-            </button>
+            <p className="text-[11px] text-gray-400">
+              นำรหัสนี้ให้เพื่อนไปกด "เข้าร่วมด้วยรหัส" ที่หน้า Dashboard
+            </p>
           </div>
 
           {/* 3. Export & Utilities */}
@@ -597,6 +586,20 @@ export const TripDetail: React.FC = () => {
                     className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 min-h-[44px]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  รหัสทริปสำหรับชวนเพื่อน (Invite Code)
+                </label>
+                <input
+                  type="text"
+                  value={editInviteCode}
+                  onChange={(e) => setEditInviteCode(e.target.value.toUpperCase())}
+                  placeholder="เช่น CHIANGMAI, TRIP2026"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono font-bold tracking-wider text-blue-600 focus:outline-none focus:border-blue-600 min-h-[44px]"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">สามารถกำหนดรหัสจำง่ายๆ ให้เพื่อนใช้พิมพ์เข้าร่วมได้</p>
               </div>
 
               <div className="flex justify-end space-x-2.5 pt-4 border-t border-gray-100">

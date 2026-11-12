@@ -23,6 +23,7 @@ export const Dashboard: React.FC = () => {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [customInviteCode, setCustomInviteCode] = useState('');
   const [creating, setCreating] = useState(false);
 
   // Edit Trip state
@@ -32,6 +33,7 @@ export const Dashboard: React.FC = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
+  const [editInviteCode, setEditInviteCode] = useState('');
   const [updating, setUpdating] = useState(false);
 
   // Delete Trip state
@@ -165,13 +167,20 @@ export const Dashboard: React.FC = () => {
     }
     setCreating(true);
     try {
-      await api.post('/trips', { name, description, startDate, endDate });
+      await api.post('/trips', {
+        name,
+        description,
+        startDate,
+        endDate,
+        customInviteCode: customInviteCode.trim().toUpperCase(),
+      });
       toast.success('สร้างทริปใหม่สำเร็จ!');
       setShowCreateModal(false);
       setName('');
       setDescription('');
       setStartDate('');
       setEndDate('');
+      setCustomInviteCode('');
       fetchTrips();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถสร้างทริปได้');
@@ -186,6 +195,7 @@ export const Dashboard: React.FC = () => {
     setEditDescription(trip.description || '');
     setEditStartDate(new Date(trip.startDate).toISOString().split('T')[0]);
     setEditEndDate(new Date(trip.endDate).toISOString().split('T')[0]);
+    setEditInviteCode(trip.inviteCode || '');
     setShowEditModal(true);
   };
 
@@ -202,6 +212,7 @@ export const Dashboard: React.FC = () => {
         description: editDescription,
         startDate: editStartDate,
         endDate: editEndDate,
+        customInviteCode: editInviteCode.trim().toUpperCase(),
       });
       toast.success('แก้ไขข้อมูลทริปสำเร็จ!');
       setShowEditModal(false);
@@ -258,13 +269,13 @@ export const Dashboard: React.FC = () => {
 
   const handleJoinTrip = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteCode) {
-      toast.error('กรุณากรอกรหัสเชิญชวน (Invite Code)');
+    if (!inviteCode || !inviteCode.trim()) {
+      toast.error('กรุณากรอกรหัสทริป (Invite Code)');
       return;
     }
     setJoining(true);
     try {
-      const res = await api.post('/trips/join', { inviteCode: inviteCode.trim() });
+      const res = await api.post('/trips/join', { inviteCode: inviteCode.trim().toUpperCase() });
       toast.success(res.data.message || 'เข้าร่วมทริปสำเร็จ!');
       setShowJoinModal(false);
       setInviteCode('');
@@ -813,6 +824,22 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  รหัสทริปสำหรับชวนเพื่อน (Invite Code - กำหนดเองได้)
+                </label>
+                <input
+                  type="text"
+                  value={customInviteCode}
+                  onChange={(e) => setCustomInviteCode(e.target.value.toUpperCase())}
+                  placeholder="เช่น CHIANGMAI, TRIP2026 (เว้นว่างเพื่อสุ่ม 6 หลัก)"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono font-bold tracking-wider text-blue-600 focus:outline-none focus:border-blue-600 min-h-[44px]"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  ตั้งรหัสจำง่ายๆ ให้เพื่อนนำไปกด "เข้าร่วมด้วยรหัส" เพื่อร่วมทริปได้ทันที
+                </p>
+              </div>
+
               <div className="flex justify-end space-x-2.5 pt-4 border-t border-gray-100">
                 <button
                   type="button"
@@ -914,6 +941,20 @@ export const Dashboard: React.FC = () => {
                     className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 min-h-[44px]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  รหัสทริปสำหรับชวนเพื่อน (Invite Code)
+                </label>
+                <input
+                  type="text"
+                  value={editInviteCode}
+                  onChange={(e) => setEditInviteCode(e.target.value.toUpperCase())}
+                  placeholder="เช่น CHIANGMAI, TRIP2026"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono font-bold tracking-wider text-blue-600 focus:outline-none focus:border-blue-600 min-h-[44px]"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">สามารถเปลี่ยนรหัสทริปจำง่ายๆ ให้เพื่อนร่วมทริปได้</p>
               </div>
 
               <div className="flex justify-end space-x-2.5 pt-4 border-t border-gray-100">
@@ -1047,16 +1088,19 @@ export const Dashboard: React.FC = () => {
             <form onSubmit={handleJoinTrip} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  รหัสเชิญชวน (Invite Code) *
+                  รหัสทริป (Invite Code) *
                 </label>
                 <input
                   type="text"
                   required
                   value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="เช่น uuid-code-from-friend"
-                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 font-mono min-h-[44px]"
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  placeholder="เช่น CHIANGMAI, TRIP2026 หรือรหัส 6 หลัก"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono font-bold tracking-wider text-blue-600 focus:outline-none focus:border-blue-600 min-h-[44px]"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  กรอกรหัสทริปที่เพื่อนส่งมาให้ เพื่อเข้าร่วมวางแผนทริปไปด้วยกัน
+                </p>
               </div>
 
               <div className="flex justify-end space-x-2.5 pt-4 border-t border-gray-100">
